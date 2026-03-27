@@ -1,0 +1,2372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yorindo — System Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d12;
+    --bg-card: #111520;
+    --bg-card2: #141926;
+    --border: #1e2535;
+    --border-bright: #2a3550;
+    --accent: #4f8eff;
+    --accent2: #7c5cfc;
+    --accent3: #00e5c0;
+    --accent-glow: rgba(79,142,255,0.18);
+    --text: #e4eaf5;
+    --text-muted: #6b7a99;
+    --text-dim: #3d4d6a;
+    --heading: #f0f6ff;
+    --tag-bg: #1a2237;
+    --tag-text: #7ba3e0;
+    --green: #22d35a;
+    --yellow: #f5c542;
+    --red: #f05060;
+    --purple: #9d7cff;
+    --cyan: #00e5c0;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ─── Noise texture overlay ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── Layout ─── */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    padding: 32px 0 32px;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-bright) transparent;
+  }
+
+  .sidebar-logo {
+    padding: 0 24px 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 16px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--heading);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+
+  .sidebar-section {
+    padding: 0 16px;
+    margin-bottom: 8px;
+  }
+
+  .sidebar-section-label {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 8px 8px 6px;
+    font-weight: 500;
+  }
+
+  .sidebar-nav {
+    list-style: none;
+  }
+
+  .sidebar-nav li a {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-family: var(--font-body);
+    font-weight: 400;
+    transition: all 0.18s ease;
+    border: 1px solid transparent;
+  }
+
+  .sidebar-nav li a:hover {
+    color: var(--text);
+    background: var(--tag-bg);
+    border-color: var(--border);
+  }
+
+  .sidebar-nav li a .nav-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 18px;
+  }
+
+  .sidebar-meta {
+    margin-top: auto;
+    padding: 20px 24px 0;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  .sidebar-meta span { display: block; margin-bottom: 3px; }
+
+  /* ─── Main content ─── */
+  main {
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ─── Hero ─── */
+  .hero {
+    padding: 60px 64px 52px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(160deg, rgba(79,142,255,0.04) 0%, transparent 60%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: -80px;
+    right: -80px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(79,142,255,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  h1 {
+    font-family: var(--font-head);
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800;
+    color: var(--heading);
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 16px;
+  }
+
+  h1 .accent-word {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    max-width: 600px;
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .hero-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    border: 1px solid var(--border);
+    letter-spacing: 0.03em;
+  }
+
+  .tag.green { color: var(--green); border-color: rgba(34,211,90,0.2); background: rgba(34,211,90,0.06); }
+  .tag.cyan { color: var(--cyan); border-color: rgba(0,229,192,0.2); background: rgba(0,229,192,0.06); }
+  .tag.purple { color: var(--purple); border-color: rgba(157,124,255,0.2); background: rgba(157,124,255,0.06); }
+  .tag.yellow { color: var(--yellow); border-color: rgba(245,197,66,0.2); background: rgba(245,197,66,0.06); }
+
+  /* ─── Content sections ─── */
+  .content {
+    padding: 0 64px 80px;
+  }
+
+  section {
+    padding-top: 64px;
+  }
+
+  section + section {
+    border-top: 1px solid var(--border);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 400;
+    opacity: 0.8;
+  }
+
+  h2 {
+    font-family: var(--font-head);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: -0.6px;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-family: var(--font-head);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--heading);
+    letter-spacing: -0.3px;
+    margin-bottom: 14px;
+    margin-top: 28px;
+  }
+
+  h3:first-child { margin-top: 0; }
+
+  p {
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-size: 14.5px;
+  }
+
+  p:last-child { margin-bottom: 0; }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: var(--border-bright); }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .card-mini {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: all 0.2s;
+  }
+
+  .card-mini:hover {
+    border-color: var(--border-bright);
+    background: var(--bg-card);
+  }
+
+  .card-mini-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .card-mini-value {
+    font-family: var(--font-head);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: -0.4px;
+  }
+
+  .card-mini-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ─── Tables ─── */
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+
+  thead {
+    background: var(--bg-card2);
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.015); }
+
+  tbody td {
+    padding: 11px 16px;
+    color: var(--text);
+    vertical-align: top;
+  }
+
+  tbody td:first-child {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* ─── Code blocks ─── */
+  pre {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8ba5cf;
+    margin: 16px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-bright) transparent;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--tag-bg);
+    color: var(--accent3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* ─── Role badges ─── */
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .role-card {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .role-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .role-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--heading);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .role-desc {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ─── Tech stack pills ─── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .tech-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  .tech-name {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .tech-ver {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .tech-cat {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    padding: 0 2px;
+  }
+
+  /* ─── Architecture diagram ─── */
+  .arch-diagram {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #6b8ab5;
+    line-height: 1.9;
+    overflow-x: auto;
+    margin-bottom: 20px;
+  }
+
+  .arch-diagram .hl { color: var(--accent); }
+  .arch-diagram .hl2 { color: var(--accent3); }
+  .arch-diagram .hl3 { color: var(--purple); }
+
+  /* ─── Flow steps ─── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0 24px;
+  }
+
+  .flow-step {
+    display: flex;
+    gap: 16px;
+    position: relative;
+  }
+
+  .flow-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 36px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .flow-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--tag-bg);
+    border: 1px solid var(--border-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+    z-index: 1;
+    position: relative;
+    background: var(--bg-card2);
+  }
+
+  .flow-body {
+    padding: 4px 0 24px;
+  }
+
+  .flow-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--heading);
+    margin-bottom: 4px;
+    font-family: var(--font-body);
+  }
+
+  .flow-detail {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* ─── Status enum pills ─── */
+  .status-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+  }
+
+  .status-pill {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+    font-weight: 500;
+  }
+
+  .status-arrow {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .s-draft { color: #a0aec0; border-color: rgba(160,174,192,0.3); background: rgba(160,174,192,0.07); }
+  .s-pub { color: var(--accent); border-color: rgba(79,142,255,0.3); background: rgba(79,142,255,0.07); }
+  .s-active { color: var(--green); border-color: rgba(34,211,90,0.3); background: rgba(34,211,90,0.07); }
+  .s-completed { color: var(--cyan); border-color: rgba(0,229,192,0.3); background: rgba(0,229,192,0.07); }
+  .s-cancelled { color: var(--red); border-color: rgba(240,80,96,0.3); background: rgba(240,80,96,0.07); }
+  .s-archived { color: var(--text-dim); border-color: rgba(61,77,106,0.4); background: rgba(61,77,106,0.1); }
+  .s-pending { color: var(--yellow); border-color: rgba(245,197,66,0.3); background: rgba(245,197,66,0.07); }
+  .s-approved { color: var(--green); border-color: rgba(34,211,90,0.3); background: rgba(34,211,90,0.07); }
+  .s-attended { color: var(--purple); border-color: rgba(157,124,255,0.3); background: rgba(157,124,255,0.07); }
+
+  /* ─── Endpoints ─── */
+  .endpoint-group {
+    margin-bottom: 20px;
+  }
+
+  .endpoint-group-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding: 0 2px;
+  }
+
+  .endpoint-list {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .endpoint {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    transition: background 0.15s;
+  }
+
+  .endpoint:last-child { border-bottom: none; }
+  .endpoint:hover { background: rgba(79,142,255,0.04); }
+
+  .method {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 4px;
+    min-width: 42px;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+
+  .get { background: rgba(34,211,90,0.12); color: var(--green); }
+  .post { background: rgba(79,142,255,0.12); color: var(--accent); }
+  .patch { background: rgba(245,197,66,0.12); color: var(--yellow); }
+  .put { background: rgba(157,124,255,0.12); color: var(--purple); }
+  .delete { background: rgba(240,80,96,0.12); color: var(--red); }
+
+  .endpoint-path { color: var(--text); }
+
+  /* ─── Infra boxes ─── */
+  .infra-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .infra-card {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .infra-card:hover {
+    border-color: var(--border-bright);
+    transform: translateY(-2px);
+  }
+
+  .infra-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .infra-name {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--heading);
+    margin-bottom: 4px;
+  }
+
+  .infra-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ─── Phase badges ─── */
+  .phase-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .phase-card {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .phase-badge.p1 { background: rgba(245,197,66,0.1); color: var(--yellow); border: 1px solid rgba(245,197,66,0.25); }
+  .phase-badge.p2 { background: rgba(34,211,90,0.1); color: var(--green); border: 1px solid rgba(34,211,90,0.25); }
+
+  .phase-card ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .phase-card ul li {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 4px 0;
+    padding-left: 16px;
+    position: relative;
+  }
+
+  .phase-card ul li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--text-dim);
+    font-size: 11px;
+  }
+
+  /* ─── File tree ─── */
+  .file-tree {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 2;
+    color: var(--text-muted);
+    overflow-x: auto;
+  }
+
+  .file-tree .dir { color: var(--accent); font-weight: 500; }
+  .file-tree .file { color: #8ba5cf; }
+  .file-tree .comment { color: var(--text-dim); }
+
+  /* ─── Divider ─── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  /* ─── Animations ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero > * {
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .hero .hero-eyebrow { animation-delay: 0.05s; }
+  .hero h1 { animation-delay: 0.12s; }
+  .hero .hero-desc { animation-delay: 0.18s; }
+  .hero .hero-tags { animation-delay: 0.24s; }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .hero, .content { padding-left: 24px; padding-right: 24px; }
+    .role-grid, .phase-compare { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 28px; }
+    h2 { font-size: 22px; }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ─── Inline note ─── */
+  .note {
+    background: rgba(79,142,255,0.06);
+    border: 1px solid rgba(79,142,255,0.18);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 16px 0;
+  }
+
+  .note strong { color: var(--accent); }
+
+  /* ─── Queue visual ─── */
+  .queue-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+
+  .queue-node {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .queue-arrow {
+    padding: 0 10px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* ─── Mobile top nav bar ─── */
+  .mobile-nav {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,13,18,0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 56px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mobile-nav-logo .logo-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
+
+  .mobile-nav-logo .logo-text {
+    font-size: 16px;
+  }
+
+  .mobile-menu-btn {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .mobile-menu-btn span {
+    display: block;
+    width: 18px;
+    height: 1.5px;
+    background: var(--text-muted);
+    border-radius: 2px;
+    transition: all 0.25s ease;
+    transform-origin: center;
+  }
+
+  .mobile-menu-btn.open span:nth-child(1) {
+    transform: translateY(6.5px) rotate(45deg);
+  }
+  .mobile-menu-btn.open span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  .mobile-menu-btn.open span:nth-child(3) {
+    transform: translateY(-6.5px) rotate(-45deg);
+  }
+
+  /* ─── Mobile drawer ─── */
+  .mobile-drawer {
+    display: none;
+    position: fixed;
+    top: 56px; left: 0; right: 0; bottom: 0;
+    z-index: 99;
+    background: var(--bg-card);
+    overflow-y: auto;
+    padding: 16px 0 32px;
+    transform: translateY(-8px);
+    opacity: 0;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    pointer-events: none;
+  }
+
+  .mobile-drawer.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ─── Scroll-spy active state ─── */
+  .sidebar-nav li a.active,
+  .mobile-drawer .sidebar-nav li a.active {
+    color: var(--accent);
+    background: rgba(79,142,255,0.08);
+    border-color: rgba(79,142,255,0.2);
+  }
+
+  /* ─── RESPONSIVE ─── */
+
+  /* Tablet: 900px and below */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+      display: none;
+    }
+
+    .mobile-nav {
+      display: flex;
+    }
+
+    .mobile-drawer {
+      display: block;
+    }
+
+    main {
+      padding-top: 56px; /* offset for fixed mobile nav */
+    }
+
+    .hero {
+      padding: 36px 20px 32px;
+    }
+
+    .content {
+      padding: 0 20px 60px;
+    }
+
+    section {
+      padding-top: 48px;
+    }
+
+    h1 {
+      font-size: 28px;
+      letter-spacing: -0.8px;
+    }
+
+    h2 {
+      font-size: 21px;
+    }
+
+    .hero-desc {
+      font-size: 14px;
+    }
+
+    .role-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .phase-compare {
+      grid-template-columns: 1fr;
+    }
+
+    .card-grid {
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+
+    .infra-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tech-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+  }
+
+  /* Mobile: 600px and below */
+  @media (max-width: 600px) {
+    .hero {
+      padding: 28px 16px 28px;
+    }
+
+    .content {
+      padding: 0 16px 48px;
+    }
+
+    h1 {
+      font-size: 24px;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      font-size: 19px;
+    }
+
+    h3 {
+      font-size: 15px;
+    }
+
+    .hero-desc {
+      font-size: 13.5px;
+    }
+
+    .hero-tags {
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 10px;
+      padding: 3px 8px;
+    }
+
+    /* Cards go full width */
+    .card-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .infra-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .tech-grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* Tables: enable horizontal scroll with visual hint */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 10px;
+    }
+
+    table {
+      min-width: 480px;
+    }
+
+    thead th {
+      font-size: 10px;
+      padding: 10px 12px;
+    }
+
+    tbody td {
+      padding: 9px 12px;
+      font-size: 12.5px;
+    }
+
+    /* Code & pre */
+    pre {
+      font-size: 11px;
+      padding: 14px 14px;
+      border-radius: 8px;
+    }
+
+    .arch-diagram {
+      font-size: 11px;
+      padding: 16px;
+    }
+
+    .file-tree {
+      font-size: 11px;
+      padding: 16px;
+    }
+
+    /* Queue flow: stack vertically */
+    .queue-flow {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .queue-arrow {
+      padding: 0 0 0 12px;
+      transform: rotate(90deg);
+      display: inline-block;
+    }
+
+    /* Status pills: wrap naturally */
+    .status-flow {
+      gap: 6px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      padding: 4px 9px;
+    }
+
+    /* Endpoints */
+    .endpoint {
+      padding: 9px 12px;
+      gap: 8px;
+    }
+
+    .endpoint-path {
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    /* Section header */
+    .section-header {
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    /* Flow steps */
+    .flow-body {
+      padding-bottom: 18px;
+    }
+
+    /* Phase compare full width */
+    .phase-compare {
+      grid-template-columns: 1fr;
+    }
+
+    /* Role grid single col */
+    .role-grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* Hero logo area */
+    .hero-eyebrow {
+      font-size: 10px;
+    }
+
+    section {
+      padding-top: 40px;
+    }
+
+    .card-mini {
+      padding: 14px 16px;
+    }
+
+    .card-mini-value {
+      font-size: 15px;
+    }
+
+    .note {
+      font-size: 12.5px;
+      padding: 10px 14px;
+    }
+  }
+
+  /* Very small: 380px and below */
+  @media (max-width: 380px) {
+    .hero, .content {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    h1 { font-size: 22px; }
+
+    .infra-grid {
+      grid-template-columns: 1fr;
+    }
+
+    table { min-width: 400px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ─── MOBILE NAV ─── -->
+  <nav class="mobile-nav" id="mobileNav">
+    <div class="mobile-nav-logo">
+      <div class="logo-icon">Y</div>
+      <div class="logo-text">Yorindo</div>
+    </div>
+    <button class="mobile-menu-btn" id="menuBtn" aria-label="Toggle menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </nav>
+
+  <!-- ─── MOBILE DRAWER ─── -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Overview</div>
+      <ul class="sidebar-nav">
+        <li><a href="#overview"><span class="nav-num">01</span> System Overview</a></li>
+        <li><a href="#architecture"><span class="nav-num">02</span> Architecture</a></li>
+        <li><a href="#stack"><span class="nav-num">03</span> Tech Stack</a></li>
+        <li><a href="#infra"><span class="nav-num">04</span> Infrastructure</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Data & API</div>
+      <ul class="sidebar-nav">
+        <li><a href="#models"><span class="nav-num">05</span> Data Models</a></li>
+        <li><a href="#api"><span class="nav-num">06</span> API Design</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Application</div>
+      <ul class="sidebar-nav">
+        <li><a href="#frontend"><span class="nav-num">07</span> Frontend Architecture</a></li>
+        <li><a href="#backend"><span class="nav-num">08</span> Backend Architecture</a></li>
+        <li><a href="#auth"><span class="nav-num">09</span> Auth & Authorization</a></li>
+        <li><a href="#features"><span class="nav-num">10</span> Key Features & Flows</a></li>
+        <li><a href="#dev"><span class="nav-num">11</span> Development Approach</a></li>
+        <li><a href="#files"><span class="nav-num">12</span> File Structure</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-meta" style="padding:20px 24px 0;margin-top:12px">
+      <span>KADA · Event Management</span>
+      <span>Quick Scan · 2026-03-25</span>
+    </div>
+  </div>
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-badge">
+        <div class="logo-icon">Y</div>
+        <div>
+          <div class="logo-text">Yorindo</div>
+          <div class="logo-sub">System Design v1.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Overview</div>
+      <ul class="sidebar-nav">
+        <li><a href="#overview"><span class="nav-num">01</span> System Overview</a></li>
+        <li><a href="#architecture"><span class="nav-num">02</span> Architecture</a></li>
+        <li><a href="#stack"><span class="nav-num">03</span> Tech Stack</a></li>
+        <li><a href="#infra"><span class="nav-num">04</span> Infrastructure</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Data & API</div>
+      <ul class="sidebar-nav">
+        <li><a href="#models"><span class="nav-num">05</span> Data Models</a></li>
+        <li><a href="#api"><span class="nav-num">06</span> API Design</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Application</div>
+      <ul class="sidebar-nav">
+        <li><a href="#frontend"><span class="nav-num">07</span> Frontend Architecture</a></li>
+        <li><a href="#backend"><span class="nav-num">08</span> Backend Architecture</a></li>
+        <li><a href="#auth"><span class="nav-num">09</span> Auth & Authorization</a></li>
+        <li><a href="#features"><span class="nav-num">10</span> Key Features & Flows</a></li>
+        <li><a href="#dev"><span class="nav-num">11</span> Development Approach</a></li>
+        <li><a href="#files"><span class="nav-num">12</span> File Structure</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-meta">
+      <span>KADA · Event Management</span>
+      <span>Quick Scan · 2026-03-25</span>
+      <span>Monorepo · Next.js 16 · Fastify 4</span>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <main>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-eyebrow">System Design Document</div>
+      <h1>Yorindo<br><span class="accent-word">Event Management</span><br>Platform</h1>
+      <p class="hero-desc">A full-lifecycle B2B event platform for KADA — covering contact database management, invitation blasting, participant registration, event-day QR check-in (offline-capable PWA), and post-event analytics.</p>
+      <div class="hero-tags">
+        <span class="tag">Version 1.0</span>
+        <span class="tag green">Next.js 16</span>
+        <span class="tag cyan">Fastify 4</span>
+        <span class="tag purple">TypeScript</span>
+        <span class="tag">PostgreSQL 16</span>
+        <span class="tag yellow">BullMQ</span>
+        <span class="tag">Redis 7</span>
+        <span class="tag green">MongoDB 7</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ─── 1. System Overview ─── -->
+      <section id="overview">
+        <div class="section-header">
+          <span class="section-num">01</span>
+          <h2>System Overview</h2>
+        </div>
+        <p>Yorindo handles the complete event lifecycle: contact database management, invitation blasting, participant registration with approval workflows, event-day QR check-in (offline-capable PWA), and post-event analytics with AI-powered insights (YoriMind).</p>
+
+        <h3>Core Actors</h3>
+        <div class="role-grid">
+          <div class="role-card">
+            <div class="role-dot" style="background:var(--accent)"></div>
+            <div>
+              <div class="role-name">admin</div>
+              <div class="role-desc">Full platform access — manages users, contacts, events, blasts, reports</div>
+            </div>
+          </div>
+          <div class="role-card">
+            <div class="role-dot" style="background:var(--cyan)"></div>
+            <div>
+              <div class="role-name">staff</div>
+              <div class="role-desc">Event-scoped — check-in, approvals for assigned events only</div>
+            </div>
+          </div>
+          <div class="role-card">
+            <div class="role-dot" style="background:var(--yellow)"></div>
+            <div>
+              <div class="role-name">viewer</div>
+              <div class="role-desc">Read-only — events and reports for assigned events</div>
+            </div>
+          </div>
+          <div class="role-card">
+            <div class="role-dot" style="background:var(--purple)"></div>
+            <div>
+              <div class="role-name">participant</div>
+              <div class="role-desc">Self-service — registration, ticket management, dashboard</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>MVP Feature Areas</h3>
+        <div class="card-grid">
+          <div class="card-mini">
+            <div class="card-mini-label">Team & Access</div>
+            <div class="card-mini-value">Admin Login JWT</div>
+            <div class="card-mini-sub">User Management · RBAC Guards · Event Assignment</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Contact Database</div>
+            <div class="card-mini-value">Excel / CSV Upload</div>
+            <div class="card-mini-sub">ETL AI Normalization · Duplicate Detection · HealthBar</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Event Management</div>
+            <div class="card-mini-value">Lifecycle State Machine</div>
+            <div class="card-mini-sub">Create · Clone · Survey Builder · Pipeline Hub (6-Tab)</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Invitation Blast</div>
+            <div class="card-mini-value">Template Editor</div>
+            <div class="card-mini-sub">Segmented Audience · Emergency Blast · Suppression List</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Registration</div>
+            <div class="card-mini-value">Multi-step Form</div>
+            <div class="card-mini-sub">Double Opt-in · Gmail SSO Pre-fill · QR Ticket · Waitlist</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Check-in PWA</div>
+            <div class="card-mini-value">Offline-first QR Scan</div>
+            <div class="card-mini-sub">Background Sync · KTP Verify · Live Attendance Monitor</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Analytics</div>
+            <div class="card-mini-value">YoriMind AI</div>
+            <div class="card-mini-sub">Funnel · Demographics · Vendor Magic Link · PDF Export</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Data Rights (UU PDP)</div>
+            <div class="card-mini-value">Data Request & Erasure</div>
+            <div class="card-mini-sub">Copy Request · Anonymization · Consent Records</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 2. Architecture ─── -->
+      <section id="architecture">
+        <div class="section-header">
+          <span class="section-num">02</span>
+          <h2>Architecture</h2>
+        </div>
+        <p>Service-oriented monorepo. The frontend is a standalone Next.js app communicating exclusively via the REST API. Backend follows a layered architecture: <strong>Routes → Services → Repositories → Databases</strong>.</p>
+
+        <div class="arch-diagram">
+<span class="hl">Browser / Mobile PWA</span>
+        │
+        ▼
+┌──────────────────┐
+│  <span class="hl2">Nginx</span>            │  reverse proxy (80/443)
+└────────┬─────────┘
+         │  route split
+   ┌─────┴──────────────────┐
+   │                        │
+   ▼                        ▼
+<span class="hl">yorindo-app</span>           <span class="hl">yorindo-api</span>
+Next.js 16 · React 19    Fastify 4 · Node.js/TS
+Port 3000                Port 3000
+                              │
+             ┌────────────────┼────────────────┐
+             ▼                ▼                ▼
+       <span class="hl3">PostgreSQL 16</span>    <span class="hl3">MongoDB 7</span>     <span class="hl3">Redis 7</span>
+       relational        documents        sessions/queues
+        </div>
+
+        <h3>Queue Communication</h3>
+        <div class="queue-flow">
+          <div class="queue-node">API Service</div>
+          <div class="queue-arrow">→</div>
+          <div class="queue-node" style="border-color:rgba(79,142,255,0.4);color:var(--accent)">BullMQ Queue</div>
+          <div class="queue-arrow">→</div>
+          <div class="queue-node">Background Worker</div>
+          <div class="queue-arrow">→</div>
+          <div class="queue-node" style="border-color:rgba(0,229,192,0.3);color:var(--cyan)">External Service</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Queue</th><th>Worker</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>blast</td><td>blast.worker</td><td>Process invitation send jobs via Everpro / Brevo</td></tr>
+              <tr><td>etl</td><td>etl.worker</td><td>Parse → Normalize (AI) → Upsert contacts</td></tr>
+              <tr><td>erasure</td><td>erasure.worker</td><td>Async data anonymization (UU PDP)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── 3. Tech Stack ─── -->
+      <section id="stack">
+        <div class="section-header">
+          <span class="section-num">03</span>
+          <h2>Tech Stack</h2>
+        </div>
+
+        <h3>Frontend — <code>yorindo-app</code></h3>
+        <div class="tech-cat">Core Framework</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">Next.js</span><span class="tech-ver">^16.2.0</span></div>
+          <div class="tech-item"><span class="tech-name">React</span><span class="tech-ver">^19.2.4</span></div>
+          <div class="tech-item"><span class="tech-name">TypeScript</span><span class="tech-ver">^5</span></div>
+          <div class="tech-item"><span class="tech-name">Tailwind CSS v4</span><span class="tech-ver">^4.2.2</span></div>
+        </div>
+        <div class="tech-cat">UI & State</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">shadcn/ui (Radix)</span><span class="tech-ver">^1.4.3</span></div>
+          <div class="tech-item"><span class="tech-name">Zustand</span><span class="tech-ver">^5.0.12</span></div>
+          <div class="tech-item"><span class="tech-name">TanStack Query</span><span class="tech-ver">^5.91.0</span></div>
+          <div class="tech-item"><span class="tech-name">TanStack Table</span><span class="tech-ver">^8.21.3</span></div>
+          <div class="tech-item"><span class="tech-name">React Hook Form + Zod</span><span class="tech-ver">^7 / ^4</span></div>
+          <div class="tech-item"><span class="tech-name">Recharts</span><span class="tech-ver">^3.8.0</span></div>
+        </div>
+        <div class="tech-cat">PWA & Offline</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">Serwist (next)</span><span class="tech-ver">^9.5.7</span></div>
+          <div class="tech-item"><span class="tech-name">idb (IndexedDB)</span><span class="tech-ver">^8.0.3</span></div>
+          <div class="tech-item"><span class="tech-name">html5-qrcode</span><span class="tech-ver">^2.3.8</span></div>
+          <div class="tech-item"><span class="tech-name">react-qr-code</span><span class="tech-ver">^2.0.18</span></div>
+        </div>
+        <div class="tech-cat">Dev & Testing</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">MSW (mock)</span><span class="tech-ver">^2.12.13</span></div>
+          <div class="tech-item"><span class="tech-name">Vitest + Testing Library</span><span class="tech-ver">^4 / ^16</span></div>
+          <div class="tech-item"><span class="tech-name">@faker-js/faker</span><span class="tech-ver">^10.3.0</span></div>
+          <div class="tech-item"><span class="tech-name">Sonner (notifications)</span><span class="tech-ver">^2.0.7</span></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>Backend — <code>yorindo-api</code></h3>
+        <div class="tech-cat">Core Framework</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">Fastify</span><span class="tech-ver">^4.27.0</span></div>
+          <div class="tech-item"><span class="tech-name">TypeScript</span><span class="tech-ver">^5.4.5</span></div>
+          <div class="tech-item"><span class="tech-name">Zod</span><span class="tech-ver">^3.23.8</span></div>
+          <div class="tech-item"><span class="tech-name">JWT + bcrypt</span><span class="tech-ver">^9 / ^5</span></div>
+        </div>
+        <div class="tech-cat">Data & Queue</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">PostgreSQL (pg)</span><span class="tech-ver">^8.11.5</span></div>
+          <div class="tech-item"><span class="tech-name">MongoDB driver</span><span class="tech-ver">^6.5.0</span></div>
+          <div class="tech-item"><span class="tech-name">Redis (ioredis)</span><span class="tech-ver">^5.3.2</span></div>
+          <div class="tech-item"><span class="tech-name">BullMQ</span><span class="tech-ver">^5.7.15</span></div>
+        </div>
+        <div class="tech-cat">AI & Utilities</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-name">Anthropic SDK</span><span class="tech-ver">^0.20.9</span></div>
+          <div class="tech-item"><span class="tech-name">OpenAI SDK</span><span class="tech-ver">^4.47.1</span></div>
+          <div class="tech-item"><span class="tech-name">node-cron</span><span class="tech-ver">^3.0.3</span></div>
+          <div class="tech-item"><span class="tech-name">Pino (logging)</span><span class="tech-ver">^9</span></div>
+          <div class="tech-item"><span class="tech-name">xlsx export</span><span class="tech-ver">^0.18.5</span></div>
+          <div class="tech-item"><span class="tech-name">qrcode</span><span class="tech-ver">^1.5.3</span></div>
+        </div>
+      </section>
+
+      <!-- ─── 4. Infrastructure ─── -->
+      <section id="infra">
+        <div class="section-header">
+          <span class="section-num">04</span>
+          <h2>Infrastructure Topology</h2>
+        </div>
+
+        <div class="infra-grid">
+          <div class="infra-card">
+            <div class="infra-icon">🔀</div>
+            <div class="infra-name">Nginx</div>
+            <div class="infra-desc">nginx:alpine<br>Reverse proxy, TLS termination</div>
+          </div>
+          <div class="infra-card">
+            <div class="infra-icon">🗄️</div>
+            <div class="infra-name">PostgreSQL 16</div>
+            <div class="infra-desc">postgres:16-alpine<br>Primary relational store</div>
+          </div>
+          <div class="infra-card">
+            <div class="infra-icon">🍃</div>
+            <div class="infra-name">MongoDB 7</div>
+            <div class="infra-desc">mongo:7<br>Survey schemas, raw ETL uploads</div>
+          </div>
+          <div class="infra-card">
+            <div class="infra-icon">⚡</div>
+            <div class="infra-name">Redis 7</div>
+            <div class="infra-desc">redis:7-alpine<br>Session blacklist, BullMQ queues</div>
+          </div>
+        </div>
+
+        <h3>Production Topology</h3>
+        <pre>Internet → Nginx (80/443)
+    ├── /api/* → yorindo-api:3000
+    └── /*     → yorindo-app:3000
+
+yorindo-api → postgres:5432
+           → mongodb:27017
+           → redis:6379
+
+Docker Volumes:
+  postgres_data   – PostgreSQL persistence
+  mongo_data      – MongoDB persistence
+  redis_data      – Redis AOF persistence
+  snapshots_data  – /data/snapshots
+  api_uploads     – /app/uploads (ETL file staging)</pre>
+
+        <div class="note">
+          <strong>Dev setup:</strong> A separate <code>docker-compose.dev.yml</code> exposes ports directly without Nginx for local development. Phase 1 development runs entirely against MSW mocks and in-memory repositories with no real databases required.
+        </div>
+      </section>
+
+      <!-- ─── 5. Data Models ─── -->
+      <section id="models">
+        <div class="section-header">
+          <span class="section-num">05</span>
+          <h2>Data Models</h2>
+        </div>
+
+        <h3>PostgreSQL — <code>contacts</code></h3>
+        <p>Primary entity for the contact database. Phone (normalized to <code>+62XXXXXXXXXX</code>) is the primary identity and deduplication key.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>id</td><td>UUID PK</td><td>gen_random_uuid()</td></tr>
+              <tr><td>name</td><td>VARCHAR(200)</td><td>Required</td></tr>
+              <tr><td>phone</td><td>VARCHAR(20) UNIQUE</td><td>Normalized: +62XXXXXXXXXX — primary identity key</td></tr>
+              <tr><td>email</td><td>VARCHAR(200) UNIQUE</td><td>Optional</td></tr>
+              <tr><td>industry_id</td><td>UUID FK</td><td>→ industries</td></tr>
+              <tr><td>job_title_id</td><td>UUID FK</td><td>→ job_titles</td></tr>
+              <tr><td>company_size</td><td>VARCHAR(20)</td><td>'&lt;50', '50-200', '200-1000', '&gt;1000'</td></tr>
+              <tr><td>completeness_score</td><td>NUMERIC(4,3)</td><td>0.000–1.000, AI-computed in ETL</td></tr>
+              <tr><td>consent_status</td><td>VARCHAR(30)</td><td>'active', 'suppressed', 'legacy_unverified'</td></tr>
+              <tr><td>flag_category</td><td>VARCHAR(50)</td><td>'spam', 'not-potential', null = clean</td></tr>
+              <tr><td>deleted_at</td><td>TIMESTAMPTZ</td><td>Soft delete</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>PostgreSQL — <code>events</code></h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>id</td><td>UUID PK</td><td></td></tr>
+              <tr><td>slug</td><td>VARCHAR(150) UNIQUE</td><td>URL-safe identifier</td></tr>
+              <tr><td>date</td><td>TIMESTAMPTZ</td><td>Event date</td></tr>
+              <tr><td>timezone</td><td>VARCHAR(50)</td><td>Default: Asia/Jakarta</td></tr>
+              <tr><td>capacity</td><td>INTEGER</td><td></td></tr>
+              <tr><td>approval_mode</td><td>VARCHAR(20)</td><td>'auto', 'manual', 'hybrid'</td></tr>
+              <tr><td>notification_channel</td><td>VARCHAR(20)</td><td>'email', 'whatsapp'</td></tr>
+              <tr><td>target_criteria</td><td>JSONB</td><td>Audience targeting rules</td></tr>
+              <tr><td>survey_schema_id</td><td>TEXT</td><td>MongoDB ObjectId reference</td></tr>
+              <tr><td>status</td><td>event_status ENUM</td><td>draft → published → active → completed/cancelled/archived</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Event Status Lifecycle</h3>
+        <div class="status-flow">
+          <span class="status-pill s-draft">draft</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-pub">published</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-active">active</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-completed">completed</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-archived">archived</span>
+        </div>
+        <div class="status-flow">
+          <span class="status-pill s-pub">published</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-cancelled">cancelled</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-archived">archived</span>
+        </div>
+
+        <h3>PostgreSQL — <code>registrations</code></h3>
+        <p>Join between contacts and events. One registration per contact per event (UNIQUE constraint).</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>contact_id</td><td>UUID FK</td><td>CASCADE delete → contacts</td></tr>
+              <tr><td>event_id</td><td>UUID FK</td><td>CASCADE delete → events</td></tr>
+              <tr><td>status</td><td>reg_status ENUM</td><td>pending → confirmed → approved → attended</td></tr>
+              <tr><td>ticket_token</td><td>TEXT</td><td>QR code token (generated on approval)</td></tr>
+              <tr><td>ai_score</td><td>NUMERIC(4,3)</td><td>AI approval score</td></tr>
+              <tr><td>attended_at</td><td>TIMESTAMPTZ</td><td>Set on check-in</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Registration Statuses</h3>
+        <div class="status-flow">
+          <span class="status-pill s-pending">pending</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-pub">confirmed</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-approved">approved</span>
+          <span class="status-arrow">→</span>
+          <span class="status-pill s-attended">attended</span>
+        </div>
+
+        <h3>Other Tables</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Table</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>users</td><td>Staff/admin accounts — bcrypt password hash, role, email</td></tr>
+              <tr><td>user_events</td><td>Scopes staff/viewer access to specific events</td></tr>
+              <tr><td>industries / job_titles</td><td>Lookup tables: slugs and names</td></tr>
+              <tr><td>vendors</td><td>Event vendor records</td></tr>
+              <tr><td>flagged_records</td><td>ETL-flagged rows pending admin review</td></tr>
+              <tr><td>audit_logs</td><td>Append-only audit trail ({resource}.{verb} actions)</td></tr>
+              <tr><td>consent_records</td><td>UU PDP consent tracking per contact</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>MongoDB Collections</h3>
+        <div class="card-grid">
+          <div class="card-mini">
+            <div class="card-mini-label">Survey Schemas</div>
+            <div class="card-mini-value">Dynamic Templates</div>
+            <div class="card-mini-sub">Per-event JSONB survey schema definitions</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Raw ETL Uploads</div>
+            <div class="card-mini-value">Pre-normalization Store</div>
+            <div class="card-mini-sub">Excel/CSV raw data before AI normalization</div>
+          </div>
+        </div>
+
+        <h3>PostgreSQL Migrations</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>File</th><th>Contents</th></tr></thead>
+            <tbody>
+              <tr><td>001_core_schema.sql</td><td>industries, job_titles, vendors, contacts, events, registrations</td></tr>
+              <tr><td>002_users_access.sql</td><td>users, user_events</td></tr>
+              <tr><td>003_audit_flagged.sql</td><td>flagged_records, audit_logs, consent_records</td></tr>
+              <tr><td>004_indexes.sql</td><td>Performance indexes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── 6. API Design ─── -->
+      <section id="api">
+        <div class="section-header">
+          <span class="section-num">06</span>
+          <h2>API Design</h2>
+        </div>
+
+        <div class="card-grid" style="margin-bottom:20px">
+          <div class="card-mini">
+            <div class="card-mini-label">Base URL</div>
+            <div class="card-mini-value" style="font-family:var(--font-mono);font-size:15px">/api</div>
+            <div class="card-mini-sub">REST · JSON body + JSON responses</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Auth</div>
+            <div class="card-mini-value" style="font-size:15px">Bearer JWT</div>
+            <div class="card-mini-sub">Authorization header · 15min access token</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Pagination</div>
+            <div class="card-mini-value" style="font-family:var(--font-mono);font-size:13px">?page=1&pageSize=20</div>
+            <div class="card-mini-sub">→ { data, pagination: { page, total, totalPages } }</div>
+          </div>
+          <div class="card-mini">
+            <div class="card-mini-label">Rate Limiting</div>
+            <div class="card-mini-value">100 req/min</div>
+            <div class="card-mini-sub">POST /registrations: 10 req/hr per IP</div>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>Error format:</strong> All errors return <code>{ error: { code, message, details: [] } }</code> — universal across all endpoints.
+        </div>
+
+        <h3>Endpoints by Domain</h3>
+
+        <div class="endpoint-group">
+          <div class="endpoint-group-label">Auth</div>
+          <div class="endpoint-list">
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/auth/login</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/auth/refresh</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/auth/logout</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/auth/google</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/auth/google-mock</span></div>
+          </div>
+        </div>
+
+        <div class="endpoint-group">
+          <div class="endpoint-group-label">Events</div>
+          <div class="endpoint-list">
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/events</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/events</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/events/:id</span></div>
+            <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/events/:id</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/events/:id/clone</span></div>
+            <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/events/:id/status</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/events/public/:slug</span></div>
+          </div>
+        </div>
+
+        <div class="endpoint-group">
+          <div class="endpoint-group-label">Registrations</div>
+          <div class="endpoint-list">
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/registrations</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/registrations</span></div>
+            <div class="endpoint"><span class="method put">PUT</span><span class="endpoint-path">/registrations/:id/status</span></div>
+            <div class="endpoint"><span class="method put">PUT</span><span class="endpoint-path">/registrations/bulk-approve</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/registrations/:id/resend-ticket</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/registrations/confirm/:token</span></div>
+          </div>
+        </div>
+
+        <div class="endpoint-group">
+          <div class="endpoint-group-label">Contacts</div>
+          <div class="endpoint-list">
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/contacts</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/contacts/upload</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/contacts/health</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/contacts/duplicates</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/contacts/merge</span></div>
+            <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/contacts/:id/flag</span></div>
+          </div>
+        </div>
+
+        <div class="endpoint-group">
+          <div class="endpoint-group-label">Scan · Blast · Reports · YoriMind · Data Rights</div>
+          <div class="endpoint-list">
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/scan/verify</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/scan/participants/:eventId</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/scan/offline-flush</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/blast</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/blast/emergency</span></div>
+            <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/reports/:eventId</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/yorimind/analyze</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/data-rights/erasure</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 7. Frontend Architecture ─── -->
+      <section id="frontend">
+        <div class="section-header">
+          <span class="section-num">07</span>
+          <h2>Frontend Architecture</h2>
+        </div>
+
+        <h3>App Router Structure</h3>
+        <div class="file-tree">
+<span class="dir">src/app/</span>
+├── <span class="file">layout.tsx</span>              <span class="comment">Root layout (providers, fonts, theme)</span>
+├── <span class="file">page.tsx</span>                <span class="comment">Public landing page</span>
+├── <span class="dir">login/</span>                   <span class="comment">Admin/staff login + participant Google SSO</span>
+├── <span class="dir">register/[eventSlug]/</span>
+│   ├── <span class="file">page.tsx</span>            <span class="comment">Public event landing</span>
+│   └── <span class="dir">form/</span>               <span class="comment">Multi-step registration (mobile-first)</span>
+├── <span class="dir">register/confirm/[token]/</span>  <span class="comment">Double opt-in confirmation</span>
+├── <span class="dir">tickets/[token]/</span>         <span class="comment">Ticket display page</span>
+├── <span class="dir">vendor-report/[token]/</span>   <span class="comment">Vendor magic-link report</span>
+├── <span class="dir">data-rights/</span>            <span class="comment">UU PDP forms</span>
+└── <span class="dir">app/</span>                     <span class="comment">Protected admin/staff shell</span>
+    ├── <span class="dir">events/</span>             <span class="comment">Event list + pipeline hub</span>
+    ├── <span class="dir">contacts/</span>           <span class="comment">Contact database</span>
+    ├── <span class="dir">blast/</span>              <span class="comment">Invitation blast</span>
+    ├── <span class="dir">scan/</span>               <span class="comment">QR check-in PWA</span>
+    └── <span class="dir">yorimind/</span>           <span class="comment">AI analysis panel</span>
+        </div>
+
+        <h3>State Management</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Store</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>authStore (Zustand)</td><td>Access token + user { id, role, name?, email? } — in-memory, not persisted</td></tr>
+              <tr><td>eventStore (Zustand)</td><td>Active event context</td></tr>
+              <tr><td>filterStore (Zustand)</td><td>Contact filter state</td></tr>
+              <tr><td>TanStack Query</td><td>All server state: fetching, caching, invalidation</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Route Guards</h3>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <div class="flow-body">
+              <div class="flow-title">No accessToken</div>
+              <div class="flow-detail">Redirect to <code>/login</code></div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <div class="flow-body">
+              <div class="flow-title">viewer role</div>
+              <div class="flow-detail">Restricted to <code>/app</code> and <code>/app/events/**</code> only</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <div class="flow-body">
+              <div class="flow-title">participant role</div>
+              <div class="flow-detail">Restricted to <code>/app</code> dashboard only (tickets, cancellation)</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>Component Architecture</h3>
+        <div class="file-tree">
+<span class="dir">src/components/</span>
+├── <span class="dir">auth/</span>       <span class="comment">MockGoogleAuthDialog (Phase 1 SSO simulation)</span>
+├── <span class="dir">dev/</span>        <span class="comment">DevToolbar — role switcher, MSW toggle (dev only)</span>
+├── <span class="dir">features/</span>   <span class="comment">Domain feature components</span>
+│   ├── <span class="dir">contacts/</span>
+│   ├── <span class="dir">dashboard/</span>  <span class="comment">Role-differentiated dashboards</span>
+│   ├── <span class="dir">events/</span>
+│   ├── <span class="dir">scan/</span>
+│   └── <span class="dir">users/</span>
+├── <span class="dir">hub/</span>        <span class="comment">Event Pipeline Hub tabs</span>
+├── <span class="dir">layout/</span>     <span class="comment">AdminShell, sidebar, mobile nav</span>
+├── <span class="dir">providers/</span>  <span class="comment">QueryProvider, MSWProvider, ThemeProvider</span>
+└── <span class="dir">ui/</span>         <span class="comment">shadcn/ui base components</span>
+        </div>
+      </section>
+
+      <!-- ─── 8. Backend Architecture ─── -->
+      <section id="backend">
+        <div class="section-header">
+          <span class="section-num">08</span>
+          <h2>Backend Architecture</h2>
+        </div>
+
+        <h3>Layer Structure</h3>
+        <div class="arch-diagram">
+HTTP Request
+     │
+     ▼
+<span class="hl">Routes</span>  (Fastify plugins)
+     │
+     ▼
+<span class="hl">Services</span>  (business logic)
+     │
+     ├──► <span class="hl2">Repositories</span>  (data access abstraction)
+     │         ├── memory/    (Phase 1: in-memory)
+     │         └── postgres/  (Phase 2: real DB)
+     │
+     └──► <span class="hl3">External Adapters</span>
+               ├── adapters/mock/  (Phase 1 stubs)
+               └── adapters/real/  (Phase 2: Everpro, Brevo, Claude API)
+        </div>
+
+        <div class="note">
+          <strong>Dependency Injection:</strong> <code>src/container.ts</code> wires all dependencies. Switching Phase 1 → Phase 2 requires only changing container bindings.
+        </div>
+
+        <h3>Services</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Service</th><th>Responsibility</th></tr></thead>
+            <tbody>
+              <tr><td>blast.service.ts</td><td>Invitation blast orchestration, BullMQ job dispatch</td></tr>
+              <tr><td>etl.service.ts</td><td>Excel/CSV ETL pipeline: parse → normalize (AI) → upsert</td></tr>
+              <tr><td>erasure.service.ts</td><td>UU PDP data erasure/anonymization</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Repositories</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Repository</th><th>Entity</th></tr></thead>
+            <tbody>
+              <tr><td>ContactRepository.ts</td><td>contacts</td></tr>
+              <tr><td>EventRepository.ts</td><td>events</td></tr>
+              <tr><td>RegistrationRepository.ts</td><td>registrations</td></tr>
+              <tr><td>UserRepository.ts</td><td>users</td></tr>
+              <tr><td>FlaggedRecordsRepository.ts</td><td>flagged ETL records</td></tr>
+              <tr><td>SurveyRepository.ts</td><td>survey schemas</td></tr>
+              <tr><td>SuppressionRepository.ts</td><td>consent/suppression</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── 9. Auth & Authorization ─── -->
+      <section id="auth">
+        <div class="section-header">
+          <span class="section-num">09</span>
+          <h2>Authentication & Authorization</h2>
+        </div>
+
+        <h3>Login Flow (Phase 2)</h3>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <div class="flow-body">
+              <div class="flow-title">POST /api/auth/login</div>
+              <div class="flow-detail">Validate credentials → bcrypt.compare password hash</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <div class="flow-body">
+              <div class="flow-title">Issue tokens</div>
+              <div class="flow-detail">Short-lived JWT access token (15 min) + httpOnly refresh token cookie (7 days)</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <div class="flow-body">
+              <div class="flow-title">Every API request</div>
+              <div class="flow-detail">Bearer token validated → Redis JWT blacklist check → response</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">4</div>
+            <div class="flow-body">
+              <div class="flow-title">Token refresh</div>
+              <div class="flow-detail">POST /api/auth/refresh with httpOnly cookie → validate against Redis → new access token</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">5</div>
+            <div class="flow-body">
+              <div class="flow-title">Logout</div>
+              <div class="flow-detail">POST /api/auth/logout → add refresh token to Redis blacklist → clear cookie → authStore.clearAuth()</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>JWT Payload</h3>
+        <pre>{ "sub": "user-uuid", "role": "admin|staff|viewer|participant", "iat": ..., "exp": ... }</pre>
+
+        <h3>Participant SSO</h3>
+        <div class="phase-compare">
+          <div class="phase-card">
+            <div class="phase-badge p1">● Phase 1 Mock</div>
+            <ul>
+              <li>POST /api/auth/google-mock</li>
+              <li>Simulates Google OAuth pre-fill (name, email only)</li>
+              <li>MockGoogleAuthDialog in frontend</li>
+            </ul>
+          </div>
+          <div class="phase-card">
+            <div class="phase-badge p2">● Phase 2 Real</div>
+            <ul>
+              <li>Real Google OAuth PKCE flow</li>
+              <li>Same /api/auth/google endpoint</li>
+              <li>Full token exchange</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Role Access Scope</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Scope</th></tr></thead>
+            <tbody>
+              <tr><td>admin</td><td>Full platform access</td></tr>
+              <tr><td>staff</td><td>Event-scoped: assigned events only (check-in, approvals)</td></tr>
+              <tr><td>viewer</td><td>Read-only: /app and /app/events/** only</td></tr>
+              <tr><td>participant</td><td>Self-service: /app dashboard only (tickets, cancellation)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── 10. Key Features & Flows ─── -->
+      <section id="features">
+        <div class="section-header">
+          <span class="section-num">10</span>
+          <h2>Key Features & Flows</h2>
+        </div>
+
+        <h3>Contact Upload & ETL Pipeline</h3>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <div class="flow-body">
+              <div class="flow-title">Admin uploads Excel / CSV</div>
+              <div class="flow-detail">POST /api/contacts/upload (multipart) → file stored in staging directory</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <div class="flow-body">
+              <div class="flow-title">ETL Worker processes</div>
+              <div class="flow-detail">Parse rows → Normalize via AI (Claude/OpenAI) → compute completeness_score</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <div class="flow-body">
+              <div class="flow-title">Duplicate detection</div>
+              <div class="flow-detail">Phone-based dedup → flagged records written to flagged_records table</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">4</div>
+            <div class="flow-body">
+              <div class="flow-title">Admin reviews flags</div>
+              <div class="flow-detail">Contacts tab Flagged view → resolve (upsert to contacts) or discard</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>Participant Registration Flow</h3>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <div class="flow-body">
+              <div class="flow-title">Visit /register/[eventSlug]</div>
+              <div class="flow-detail">Public event landing page loads event details via GET /api/events/public/[slug]</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <div class="flow-body">
+              <div class="flow-title">Optional Google SSO pre-fill</div>
+              <div class="flow-detail">MockGoogleAuthDialog → name + email pre-filled (read-only). Phone always entered manually.</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <div class="flow-body">
+              <div class="flow-title">Multi-step form submission</div>
+              <div class="flow-detail">Contact Info → Survey → Confirm → POST /api/registrations → status: pending</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">4</div>
+            <div class="flow-body">
+              <div class="flow-title">Double opt-in via email</div>
+              <div class="flow-detail">Participant clicks confirm link → GET /api/registrations/confirm/:token → status: confirmed</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">5</div>
+            <div class="flow-body">
+              <div class="flow-title">Participant session created</div>
+              <div class="flow-detail">Auto-trigger POST /api/auth/google → participant accessToken set → "Masuk ke Dashboard" shown</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>QR Check-in — Offline-first PWA</h3>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <div class="flow-body">
+              <div class="flow-title">Staff opens Scan PWA</div>
+              <div class="flow-detail">GET /api/scan/participants/:eventId → participant list cached in IndexedDB</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <div class="flow-body">
+              <div class="flow-title">Online scan</div>
+              <div class="flow-detail">Scan QR → POST /api/scan/verify → validate token → UPDATE registration status: attended</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <div class="flow-body">
+              <div class="flow-title">Offline scan</div>
+              <div class="flow-detail">Match QR against IndexedDB cache → queue scan → Background Sync registered</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">4</div>
+            <div class="flow-body">
+              <div class="flow-title">Sync on reconnect</div>
+              <div class="flow-detail">Background Sync fires → POST /api/scan/offline-flush → batch upload queued scans</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>YoriMind AI Analysis</h3>
+        <div class="card">
+          <p>Admin requests analysis for a completed event via POST /api/yorimind/analyze. Claude Sonnet API processes attendance data, demographics, and engagement metrics to return structured insights:</p>
+          <div class="status-flow" style="margin-top:12px">
+            <span class="status-pill s-pub">root_causes</span>
+            <span class="status-pill s-active">recommendations</span>
+            <span class="status-pill s-completed">summary</span>
+          </div>
+          <p style="margin-top:12px">Recommendations are prioritized as <code>high</code> / <code>medium</code> / <code>low</code>. Analysis is only available for events in <code>completed</code> status.</p>
+        </div>
+      </section>
+
+      <!-- ─── 11. Dev Approach ─── -->
+      <section id="dev">
+        <div class="section-header">
+          <span class="section-num">11</span>
+          <h2>Development Approach</h2>
+        </div>
+
+        <div class="phase-compare">
+          <div class="phase-card">
+            <div class="phase-badge p1">● Phase 1 — Mock-first</div>
+            <ul>
+              <li>All API calls intercepted by MSW v2 handlers</li>
+              <li>In-memory repositories — no real DB</li>
+              <li>Everpro, Brevo, Claude API all mocked</li>
+              <li>Story 1.4 (OpenAPI spec) is the gate before Epic 2+</li>
+              <li>Story 1.8 is the Phase 1 BE gate</li>
+            </ul>
+          </div>
+          <div class="phase-card">
+            <div class="phase-badge p2">● Phase 2 — Real Backend</div>
+            <ul>
+              <li>Swap to PostgreSQL/MongoDB repos</li>
+              <li>Swap mock adapters for real (Everpro, Brevo)</li>
+              <li>Redis for JWT blacklist + BullMQ</li>
+              <li>Real Google OAuth replacing /api/auth/google-mock</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Developer Tools</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tool</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>DevToolbar</td><td>Visible in dev only — instant role switching (admin/staff/viewer/participant), MSW toggle</td></tr>
+              <tr><td>MSW DevTools</td><td>Available in browser for inspecting mock requests</td></tr>
+              <tr><td>Vitest</td><td>Unit/integration tests with vitest.config.ts + vitest.setup.ts</td></tr>
+              <tr><td>fake-indexeddb</td><td>Offline queue testing without real IndexedDB</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── 12. File Structure ─── -->
+      <section id="files">
+        <div class="section-header">
+          <span class="section-num">12</span>
+          <h2>File Structure</h2>
+        </div>
+
+        <div class="file-tree">
+<span class="dir">yorindo/</span>                           <span class="comment">Monorepo root</span>
+├── <span class="dir">docs/</span>
+│   ├── <span class="file">system-design.md</span>
+│   └── <span class="file">secrets-setup.md</span>
+├── <span class="dir">_bmad-output/</span>
+│   ├── <span class="dir">planning-artifacts/</span>        <span class="comment">PRD, architecture, epics, UX specs</span>
+│   └── <span class="dir">implementation-artifacts/</span>  <span class="comment">Sprint status + story files</span>
+├── <span class="dir">yorindo-app/</span>                   <span class="comment">Next.js 16 frontend</span>
+│   └── <span class="dir">src/</span>
+│       ├── <span class="dir">app/</span>                   <span class="comment">Next.js App Router pages</span>
+│       ├── <span class="dir">components/</span>
+│       │   ├── <span class="dir">ui/</span>                <span class="comment">shadcn/ui base</span>
+│       │   ├── <span class="dir">features/</span>          <span class="comment">Domain components</span>
+│       │   ├── <span class="dir">layout/</span>            <span class="comment">AdminShell, nav</span>
+│       │   ├── <span class="dir">auth/</span>              <span class="comment">Auth dialogs</span>
+│       │   └── <span class="dir">dev/</span>               <span class="comment">DevToolbar</span>
+│       ├── <span class="dir">hooks/</span>                 <span class="comment">TanStack Query hooks per domain</span>
+│       ├── <span class="dir">store/</span>                 <span class="comment">Zustand stores</span>
+│       ├── <span class="dir">types/</span>                 <span class="comment">TypeScript API types</span>
+│       ├── <span class="dir">mocks/</span>                 <span class="comment">MSW handlers + browser setup</span>
+│       ├── <span class="dir">lib/</span>                   <span class="comment">Utilities (cn, djb2, etc.)</span>
+│       └── <span class="dir">utils/</span>                 <span class="comment">Helper functions</span>
+├── <span class="dir">yorindo-api/</span>                   <span class="comment">Fastify 4 backend</span>
+│   ├── <span class="dir">src/</span>
+│   │   ├── <span class="dir">routes/</span>                <span class="comment">Fastify route plugins</span>
+│   │   ├── <span class="dir">services/</span>
+│   │   │   └── <span class="dir">adapters/</span>          <span class="comment">External service adapters (mock/real)</span>
+│   │   ├── <span class="dir">repositories/</span>
+│   │   │   ├── <span class="dir">memory/</span>            <span class="comment">Phase 1 in-memory repos</span>
+│   │   │   └── <span class="dir">postgres/</span>          <span class="comment">Phase 2 real DB repos</span>
+│   │   ├── <span class="dir">workers/</span>               <span class="comment">BullMQ background workers</span>
+│   │   ├── <span class="dir">middleware/</span>            <span class="comment">Auth, validation middleware</span>
+│   │   ├── <span class="file">container.ts</span>           <span class="comment">DI container</span>
+│   │   ├── <span class="file">server.ts</span>              <span class="comment">Fastify server factory</span>
+│   │   └── <span class="file">main.ts</span>                <span class="comment">Entrypoint</span>
+│   ├── <span class="dir">migrations/</span>                <span class="comment">PostgreSQL migration SQL files</span>
+│   └── <span class="file">openapi.yaml</span>               <span class="comment">OpenAPI 3.0 spec (API contract)</span>
+├── <span class="dir">nginx/</span>                         <span class="comment">Nginx reverse proxy config</span>
+├── <span class="file">docker-compose.yml</span>             <span class="comment">Production services</span>
+├── <span class="file">docker-compose.dev.yml</span>         <span class="comment">Development services</span>
+└── <span class="dir">.github/</span>                       <span class="comment">CI/CD workflows</span>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const drawer = document.getElementById('mobileDrawer');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = drawer.classList.toggle('open');
+    menuBtn.classList.toggle('open', isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  });
+
+  drawer.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      drawer.classList.remove('open');
+      menuBtn.classList.remove('open');
+      document.body.style.overflow = '';
+    });
+  });
+
+  const sections = document.querySelectorAll('section[id]');
+  const allNavLinks = document.querySelectorAll('.sidebar-nav a');
+
+  function onScroll() {
+    const scrollY = window.scrollY + 80;
+    let current = '';
+    sections.forEach(sec => {
+      if (sec.offsetTop <= scrollY) current = sec.id;
+    });
+    allNavLinks.forEach(link => {
+      link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  document.addEventListener('click', (e) => {
+    if (drawer.classList.contains('open') &&
+        !drawer.contains(e.target) &&
+        !menuBtn.contains(e.target)) {
+      drawer.classList.remove('open');
+      menuBtn.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  });
+</script>
+
+</body>
+</html>
