@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yorindo — System Design Visual</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+:root {
+  --bg:        #0D1117;
+  --bg2:       #161B22;
+  --bg3:       #1C2333;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --text:      #E6EDF3;
+  --muted:     #8B949E;
+  --blue:      #58A6FF;
+  --green:     #3FB950;
+  --orange:    #F0883E;
+  --purple:    #BC8CFF;
+  --teal:      #39D353;
+  --cyan:      #56D364;
+  --yellow:    #E3B341;
+  --red:       #FF7B72;
+  --pink:      #F778BA;
+
+  /* flow colors */
+  --etl-c:    #F0883E;
+  --blast-c:  #58A6FF;
+  --reg-c:    #3FB950;
+  --apv-c:    #BC8CFF;
+  --scan-c:   #39C5CF;
+  --walk-c:   #E3B341;
+  --anl-c:    #F778BA;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0 0 80px;
+}
+
+/* ── HEADER ── */
+.hero {
+  background: linear-gradient(180deg, #161B22 0%, #0D1117 100%);
+  border-bottom: 1px solid var(--border2);
+  padding: 40px 32px 32px;
+  text-align: center;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(88,166,255,.1);
+  border: 1px solid rgba(88,166,255,.25);
+  color: var(--blue);
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; padding: 4px 12px; border-radius: 20px;
+  margin-bottom: 16px;
+}
+.hero h1 { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+.hero h1 em { font-style: normal; color: var(--blue); }
+.hero p { color: var(--muted); font-size: 13px; max-width: 540px; margin: 0 auto; }
+
+/* ── TABS ── */
+.tabs-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,17,23,.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border2);
+  display: flex; gap: 2px;
+  padding: 8px 24px;
+  overflow-x: auto;
+}
+.tab-btn {
+  flex-shrink: 0;
+  background: none; border: none;
+  color: var(--muted); cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  padding: 7px 14px; border-radius: 8px;
+  transition: all .18s; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab-btn:hover { background: var(--bg3); color: var(--text); }
+.tab-btn.active { background: var(--bg3); color: var(--text); box-shadow: inset 0 -2px 0 var(--blue); }
+.tab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── MAIN LAYOUT ── */
+.page { display: none; padding: 28px 24px; max-width: 1100px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* ── SECTION TITLE ── */
+.sec-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 14px; margin-top: 28px;
+}
+.sec-title:first-child { margin-top: 0; }
+
+/* ── GRID ── */
+.grid { display: grid; gap: 10px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ── CARD ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  position: relative;
+  transition: border-color .2s;
+}
+.card:hover { border-color: var(--border2); }
+.card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.card-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
+.card-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.card-tech { font-size: 10px; color: var(--muted); font-weight: 500; }
+.card-desc { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.tag {
+  font-size: 9.5px; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; border: 1px solid;
+}
+.tag-free   { color: var(--green);  border-color: rgba(63,185,80,.3);  background: rgba(63,185,80,.08);  }
+.tag-paid   { color: var(--orange); border-color: rgba(240,136,62,.3); background: rgba(240,136,62,.08); }
+.tag-del    { color: var(--red);    border-color: rgba(255,123,114,.3);background: rgba(255,123,114,.08);text-decoration: line-through; }
+.tag-ai     { color: var(--purple); border-color: rgba(188,140,255,.3);background: rgba(188,140,255,.08);}
+.tag-new    { color: var(--cyan);   border-color: rgba(57,211,83,.3);  background: rgba(57,211,83,.08);  }
+
+/* accent top border */
+.card[data-color]::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: 12px 12px 0 0;
+  background: var(--accent-color);
+}
+.card[data-color="blue"]   { --accent-color: var(--blue); }
+.card[data-color="green"]  { --accent-color: var(--green); }
+.card[data-color="orange"] { --accent-color: var(--orange); }
+.card[data-color="purple"] { --accent-color: var(--purple); }
+.card[data-color="yellow"] { --accent-color: var(--yellow); }
+.card[data-color="pink"]   { --accent-color: var(--pink); }
+.card[data-color="red"]    { --accent-color: var(--red); }
+.card[data-color="cyan"]   { --accent-color: #39C5CF; }
+
+/* ── DASHED (removed) CARD ── */
+.card.removed {
+  opacity: .45;
+  border-style: dashed;
+  border-color: rgba(255,123,114,.25);
+}
+
+/* ── VPS WRAPPER ── */
+.vps-wrap {
+  border: 1.5px dashed rgba(88,166,255,.25);
+  border-radius: 16px;
+  padding: 18px;
+  background: rgba(88,166,255,.03);
+}
+.vps-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--blue);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 7px;
+}
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: p 2s infinite; }
+@keyframes p { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── FLOW STEPS ── */
+.flow-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 20px 16px;
+  margin-bottom: 10px;
+}
+.flow-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px;
+}
+.flow-num {
+  width: 26px; height: 26px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; flex-shrink: 0;
+}
+.flow-title { font-size: 14px; font-weight: 700; }
+.flow-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.step {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 96px; flex: 1;
+}
+.step-box {
+  width: 52px; height: 52px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,.08);
+  margin-bottom: 7px;
+}
+.step-label {
+  text-align: center; font-size: 10px; color: var(--muted);
+  line-height: 1.45; padding: 0 4px;
+}
+.step-label strong { display: block; font-size: 10.5px; color: var(--text); font-weight: 700; margin-bottom: 1px; }
+.step-arrow {
+  display: flex; align-items: center; padding-top: 16px;
+  color: rgba(255,255,255,.15); font-size: 22px; flex-shrink: 0;
+}
+.step-arrow.colored { color: var(--arrow-c); opacity: .6; }
+
+/* dashed step */
+.step.opt .step-box { opacity: .6; border-style: dashed; }
+.step.opt .step-label { opacity: .6; }
+.opt-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 6px;
+  background: rgba(188,140,255,.15); color: var(--purple);
+  margin-top: 4px;
+}
+.auto-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 6px;
+  background: rgba(63,185,80,.15); color: var(--green);
+  margin-top: 4px;
+}
+
+/* ── COST TABLE ── */
+.cost-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cost-table th {
+  text-align: left; padding: 8px 12px;
+  border-bottom: 1px solid var(--border2);
+  color: var(--muted); font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.cost-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.cost-table tr:last-child td { border-bottom: none; }
+.cost-table tr.total-row td { background: rgba(63,185,80,.06); font-weight: 700; }
+.cost-table tr.del-row td { opacity: .45; text-decoration: line-through; color: var(--red); }
+.cost-table tr.del-row td:first-child { text-decoration: none; }
+.price-free  { color: var(--green);  font-weight: 700; }
+.price-cheap { color: var(--cyan);   font-weight: 700; }
+.price-del   { color: var(--red);    font-weight: 600; }
+
+/* ── COMPARE BOX ── */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.compare-card {
+  border-radius: 12px; padding: 16px;
+  border: 1px solid;
+}
+.compare-card.old { border-color: rgba(255,123,114,.25); background: rgba(255,123,114,.04); }
+.compare-card.new { border-color: rgba(63,185,80,.25);   background: rgba(63,185,80,.04);   }
+.compare-head { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+.compare-card.old .compare-head { color: var(--red); }
+.compare-card.new .compare-head { color: var(--green); }
+.compare-item { display: flex; gap: 8px; font-size: 11.5px; color: var(--muted); margin-bottom: 7px; line-height: 1.45; }
+.compare-item .ci { flex-shrink: 0; }
+
+/* ── CALLOUT ── */
+.callout {
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 11.5px; line-height: 1.6;
+  border: 1px solid; margin: 10px 0;
+}
+.callout.info   { border-color: rgba(88,166,255,.25);  background: rgba(88,166,255,.06);  color: #8BB8F8; }
+.callout.warn   { border-color: rgba(227,179,65,.25);  background: rgba(227,179,65,.06);  color: #D4A833; }
+.callout.good   { border-color: rgba(63,185,80,.25);   background: rgba(63,185,80,.06);   color: #5CC16A; }
+.callout.purple { border-color: rgba(188,140,255,.25); background: rgba(188,140,255,.06); color: var(--purple); }
+.callout strong { color: var(--text); }
+
+/* ── EMAIL BADGE ROW ── */
+.email-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.email-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 7px 11px; font-size: 11px;
+}
+.email-badge .en { font-weight: 700; color: var(--text); }
+.email-badge .et { color: var(--muted); }
+
+/* ── LEGEND ── */
+.legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 0 0; }
+.leg-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.leg-dot { width: 12px; height: 3px; border-radius: 2px; }
+
+/* ── DIVIDER ── */
+hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .compare { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 20px; }
+  .page { padding: 18px 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">📐 System Design</div>
+  <h1>Yorindo Communication<br><em>Arsitektur Sistem — Versi Terbaru</em></h1>
+  <p>Panduan visual cara kerja sistem dari nol untuk semua orang, termasuk yang belum pernah lihat system design sebelumnya.</p>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="showTab('overview')" id="tab-overview">
+    <span class="tab-dot" style="background:#58A6FF"></span> Gambaran Umum
+  </button>
+  <button class="tab-btn" onclick="showTab('etl')" id="tab-etl">
+    <span class="tab-dot" style="background:#F0883E"></span> 1 · Upload Data
+  </button>
+  <button class="tab-btn" onclick="showTab('blast')" id="tab-blast">
+    <span class="tab-dot" style="background:#58A6FF"></span> 2 · Kirim Undangan
+  </button>
+  <button class="tab-btn" onclick="showTab('reg')" id="tab-reg">
+    <span class="tab-dot" style="background:#3FB950"></span> 3 · Registrasi
+  </button>
+  <button class="tab-btn" onclick="showTab('approve')" id="tab-approve">
+    <span class="tab-dot" style="background:#BC8CFF"></span> 4 · Approve & QR
+  </button>
+  <button class="tab-btn" onclick="showTab('event')" id="tab-event">
+    <span class="tab-dot" style="background:#39C5CF"></span> 5 · Hari Event
+  </button>
+  <button class="tab-btn" onclick="showTab('analytics')" id="tab-analytics">
+    <span class="tab-dot" style="background:#F778BA"></span> 6 · Analitik
+  </button>
+  <button class="tab-btn" onclick="showTab('cost')" id="tab-cost">
+    <span class="tab-dot" style="background:#E3B341"></span> 💰 Biaya
+  </button>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 1 — GAMBARAN UMUM
+════════════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+
+  <div class="sec-title">👥 Siapa yang Pakai Sistem Ini?</div>
+  <div class="grid grid-3">
+    <div class="card" data-color="blue">
+      <div class="card-top">
+        <span class="card-icon">🧑‍💼</span>
+        <div><div class="card-name">Admin Yorindo</div><div class="card-tech">Pengguna utama sistem</div></div>
+      </div>
+      <div class="card-desc">Upload data kontak Excel, filter & kirim undangan, approve peserta, lihat dashboard analitik & insight AI.</div>
+    </div>
+    <div class="card" data-color="green">
+      <div class="card-top">
+        <span class="card-icon">🧑‍💻</span>
+        <div><div class="card-name">Peserta (Online)</div><div class="card-tech">Diundang via email</div></div>
+      </div>
+      <div class="card-desc">Terima email undangan → klik link → isi form registrasi → terima tiket QR di email → datang ke event.</div>
+    </div>
+    <div class="card" data-color="cyan">
+      <div class="card-top">
+        <span class="card-icon">🧑‍🔧</span>
+        <div><div class="card-name">Staff (Hari-H)</div><div class="card-tech">Petugas di lokasi event</div></div>
+      </div>
+      <div class="card-desc">Scan QR tiket peserta saat check-in, atau input data peserta yang datang tanpa daftar online (walk-in).</div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">🏗️ Komponen Server — Apa Saja yang Jalan?</div>
+  <div class="vps-wrap">
+    <div class="vps-label"><span class="pulse"></span> Oracle Cloud VPS — Server Utama (Gratis Selamanya · 4 CPU · 24GB RAM)</div>
+    <div class="grid grid-2">
+      <div class="card" data-color="blue">
+        <div class="card-top"><span class="card-icon">🖥️</span><div><div class="card-name">Next.js — Tampilan Website</div><div class="card-tech">Yang kamu lihat di browser</div></div></div>
+        <div class="card-desc">Semua halaman yang bisa dibuka: form daftar peserta, dashboard admin, halaman scan QR untuk staff di hari event.</div>
+      </div>
+      <div class="card" data-color="purple">
+        <div class="card-top"><span class="card-icon">⚙️</span><div><div class="card-name">Fastify API — Prosesor Data</div><div class="card-tech">Otak di balik layar</div></div></div>
+        <div class="card-desc">Menerima semua perintah dari tampilan website, lalu mengeksekusi: simpan data, approve peserta, buat QR, hitung statistik.</div>
+      </div>
+      <div class="card" data-color="orange">
+        <div class="card-top"><span class="card-icon">📋</span><div><div class="card-name">ETL Worker — Pemroses Excel</div><div class="card-tech">Berjalan di background</div></div></div>
+        <div class="card-desc">Antri dan proses upload Excel secara terurut. Tidak memblokir sistem saat file besar sedang diproses.</div>
+        <div class="card-tags"><span class="tag tag-new">BullMQ Queue</span><span class="tag tag-free">Gratis</span></div>
+      </div>
+      <div class="card" data-color="green">
+        <div class="card-top"><span class="card-icon">📧</span><div><div class="card-name">Blast Worker — Pengirim Email</div><div class="card-tech">Berjalan di background</div></div></div>
+        <div class="card-desc">Antri dan kirim semua email secara otomatis: undangan, tiket QR, konfirmasi hadir. Kirim max 300/hari, sisanya antre ke besok.</div>
+        <div class="card-tags"><span class="tag tag-new">BullMQ Queue</span><span class="tag tag-free">Gratis</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">💾 Tempat Penyimpanan Data</div>
+  <div class="grid grid-3">
+    <div class="card" data-color="green">
+      <div class="card-top"><span class="card-icon">🗄️</span><div><div class="card-name">PostgreSQL</div><div class="card-tech">Supabase Free</div></div></div>
+      <div class="card-desc">Database utama. Menyimpan semua data: 30.000+ kontak, event, registrasi, hasil survei, log pengiriman email.</div>
+      <div class="card-tags"><span class="tag tag-free">✓ Gratis</span></div>
+    </div>
+    <div class="card" data-color="yellow">
+      <div class="card-top"><span class="card-icon">⚡</span><div><div class="card-name">Redis</div><div class="card-tech">Upstash Free</div></div></div>
+      <div class="card-desc">Antrean pekerjaan background. Seperti "daftar to-do" untuk worker ETL dan Blast. Juga menyimpan cache agar lebih cepat.</div>
+      <div class="card-tags"><span class="tag tag-free">✓ Gratis</span></div>
+    </div>
+    <div class="card" data-color="purple">
+      <div class="card-top"><span class="card-icon">📁</span><div><div class="card-name">File Storage</div><div class="card-tech">Supabase Free</div></div></div>
+      <div class="card-desc">Menyimpan file Excel yang di-upload admin. Semua file asli disimpan permanen sebagai arsip yang tidak bisa dihapus.</div>
+      <div class="card-tags"><span class="tag tag-free">✓ Gratis</span></div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">🔗 Layanan Eksternal</div>
+  <div class="grid grid-2">
+    <div class="card" data-color="orange">
+      <div class="card-top"><span class="card-icon">🐍</span><div><div class="card-name">Python / Pandas</div><div class="card-tech">Render Free — dipanggil saat ada upload saja</div></div></div>
+      <div class="card-desc">Script pembersih data Excel: normalisasi nomor HP ke +62, hapus duplikat, deteksi data kosong. Murni kode logika, <strong>tanpa AI</strong>.</div>
+      <div class="card-tags"><span class="tag tag-free">✓ Gratis</span><span class="tag tag-del">❌ GPT dihapus</span></div>
+    </div>
+    <div class="card" data-color="blue">
+      <div class="card-top"><span class="card-icon">📬</span><div><div class="card-name">Brevo</div><div class="card-tech">Email — 300/hari gratis</div></div></div>
+      <div class="card-desc">Satu-satunya saluran notifikasi. Kirim 4 jenis email: undangan, terima kasih daftar, tiket QR, konfirmasi hadir.</div>
+      <div class="card-tags"><span class="tag tag-free">✓ 300 email/hari gratis</span><span class="tag tag-del">❌ WhatsApp Everpro dihapus</span></div>
+    </div>
+    <div class="card" data-color="purple">
+      <div class="card-top"><span class="card-icon">🤖</span><div><div class="card-name">Claude (Anthropic)</div><div class="card-tech">AI — hanya 2 fungsi spesifik</div></div></div>
+      <div class="card-desc"><strong>AI Recommender:</strong> rekomendasikan kontak paling cocok diundang.<br><br><strong>YoriMind:</strong> rangkum insight & feedback survei peserta dalam narasi yang mudah dibaca admin.</div>
+      <div class="card-tags"><span class="tag tag-ai">Haiku / Sonnet</span><span class="tag tag-paid">~$2–14/tahun</span></div>
+    </div>
+    <div class="card" data-color="blue">
+      <div class="card-top"><span class="card-icon">☁️</span><div><div class="card-name">Cloudflare</div><div class="card-tech">DNS & Keamanan</div></div></div>
+      <div class="card-desc">Semua pengunjung website wajib melewati Cloudflare. Fungsi: memberi alamat yorindo.id, blokir serangan, percepat loading.</div>
+      <div class="card-tags"><span class="tag tag-free">✓ Gratis</span></div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">🗺️ Peta Alur — Ada 6 Alur Kerja Utama</div>
+  <div class="grid grid-2">
+    <div class="card" data-color="orange" style="cursor:pointer;" onclick="showTab('etl')">
+      <div class="card-top"><span class="card-icon">📥</span><div><div class="card-name">Alur 1 — Upload & Bersihkan Data</div><div class="card-tech">Klik untuk lihat detail →</div></div></div>
+      <div class="card-desc">Admin upload Excel → Python bersihkan → data masuk database. Data bermasalah di-flag untuk dicek manual.</div>
+    </div>
+    <div class="card" data-color="blue" style="cursor:pointer;" onclick="showTab('blast')">
+      <div class="card-top"><span class="card-icon">📤</span><div><div class="card-name">Alur 2 — Filter & Kirim Undangan</div><div class="card-tech">Klik untuk lihat detail →</div></div></div>
+      <div class="card-desc">Admin filter kontak → opsional pakai AI Recommender → blast email undangan otomatis via Brevo.</div>
+    </div>
+    <div class="card" data-color="green" style="cursor:pointer;" onclick="showTab('reg')">
+      <div class="card-top"><span class="card-icon">📝</span><div><div class="card-name">Alur 3 — Registrasi Peserta</div><div class="card-tech">Klik untuk lihat detail →</div></div></div>
+      <div class="card-desc">Peserta klik link undangan → isi form & survei → sistem kirim email konfirmasi otomatis.</div>
+    </div>
+    <div class="card" data-color="purple" style="cursor:pointer;" onclick="showTab('approve')">
+      <div class="card-top"><span class="card-icon">✅</span><div><div class="card-name">Alur 4 — Approve & Tiket QR</div><div class="card-tech">Klik untuk lihat detail →</div></div></div>
+      <div class="card-desc">Admin approve peserta → sistem generate tiket QR → email tiket dikirim otomatis ke peserta.</div>
+    </div>
+    <div class="card" data-color="cyan" style="cursor:pointer;" onclick="showTab('event')">
+      <div class="card-top"><span class="card-icon">🎫</span><div><div class="card-name">Alur 5 — Hari Event (Scan & Walk-in)</div><div class="card-tech">Klik untuk lihat detail →</div></div></div>
+      <div class="card-desc">Staff scan QR tiket peserta, atau input walk-in manual. Dashboard update real-time setiap ada yang check-in.</div>
+    </div>
+    <div class="card" data-color="pink" style="cursor:pointer;" onclick="showTab('analytics')">
+      <div class="card-top"><span class="card-icon">📊</span><div><div class="card-name">Alur 6 — Dashboard & Analitik</div><div class="card-tech">Klik untuk lihat detail →</div></div></div>
+      <div class="card-desc">Angka & grafik langsung dari database (SQL). YoriMind AI opsional untuk rangkum insight survei peserta.</div>
+    </div>
+  </div>
+
+</div><!-- /page-overview -->
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 2 — ETL
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-etl">
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(240,136,62,.2);color:var(--orange);">1</div>
+      <div>
+        <div class="flow-title">Upload & Bersihkan Data Kontak</div>
+        <div class="flow-sub">Mulai: Admin upload Excel — Selesai: Data bersih masuk database / data bermasalah di-flag</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(240,136,62,.12);">📥</div>
+        <div class="step-label"><strong>Admin Upload</strong>Buka /admin/etl, upload file Excel kontak</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(240,136,62,.12);">📁</div>
+        <div class="step-label"><strong>Simpan File</strong>File Excel disimpan permanen di Storage (arsip)</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(240,136,62,.12);">⚡</div>
+        <div class="step-label"><strong>Masuk Antrean</strong>Job ETL masuk Redis, siap diproses worker</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(240,136,62,.12);">🐍</div>
+        <div class="step-label"><strong>Python Bersihkan</strong>Normalisasi HP → +62, hapus duplikat, cek kosong</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">✅</div>
+        <div class="step-label"><strong>Data Bersih</strong>Langsung masuk database (upsert)</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(255,123,114,.12);">🚩</div>
+        <div class="step-label"><strong>Data Bermasalah</strong>Di-flag merah, tunggu review admin</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(227,179,65,.12);">✍️</div>
+        <div class="step-label"><strong>Admin Review</strong>Perbaiki data bermasalah di dashboard</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">🗄️</div>
+        <div class="step-label"><strong>Tersimpan</strong>Data yang diperbaiki masuk database</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout good">
+    <strong>✅ Perubahan dari versi lama:</strong> ETL tidak lagi pakai AI / GPT untuk membersihkan data. Sekarang murni Python (Pandas) — lebih cepat, tidak ada biaya token, dan hasilnya lebih bisa diprediksi. Data yang ambigu di-flag untuk dicek manusia.
+  </div>
+  <div class="callout warn">
+    <strong>⚠️ Yang di-flag itu apa?</strong> Contoh: nomor HP tidak valid, nama duplikat tapi beda ejaan sedikit, kolom kosong yang wajib diisi. Sistem menandai dengan warna merah di dashboard, admin yang memutuskan tindakan.
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">🔧 Komponen yang Terlibat</div>
+  <div class="grid grid-3">
+    <div class="card" data-color="orange"><div class="card-top"><span class="card-icon">🧑‍💼</span><div><div class="card-name">Admin</div></div></div><div class="card-desc">Trigger upload, lalu review data yang di-flag.</div></div>
+    <div class="card" data-color="orange"><div class="card-top"><span class="card-icon">📋</span><div><div class="card-name">ETL Worker (BullMQ)</div></div></div><div class="card-desc">Ambil job dari antrean, koordinasikan proses, simpan hasilnya.</div></div>
+    <div class="card" data-color="orange"><div class="card-top"><span class="card-icon">🐍</span><div><div class="card-name">Python / Pandas</div><div class="card-tech">Render Free</div></div></div><div class="card-desc">Eksekusi logika pembersihan: normalisasi, dedup, validasi format.</div></div>
+    <div class="card" data-color="orange"><div class="card-top"><span class="card-icon">📁</span><div><div class="card-name">File Storage</div><div class="card-tech">Supabase Free</div></div></div><div class="card-desc">Simpan file Excel asli sebagai arsip permanen (immutable log).</div></div>
+    <div class="card" data-color="orange"><div class="card-top"><span class="card-icon">⚡</span><div><div class="card-name">Redis (Upstash)</div></div></div><div class="card-desc">Antrean job ETL agar tidak ada yang ketinggalan walau banyak upload.</div></div>
+    <div class="card" data-color="orange"><div class="card-top"><span class="card-icon">🗄️</span><div><div class="card-name">PostgreSQL</div></div></div><div class="card-desc">Tujuan akhir: data bersih ke tabel contacts, data flag ke etl_flagged_records.</div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 3 — BLAST UNDANGAN
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-blast">
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(88,166,255,.2);color:var(--blue);">2</div>
+      <div>
+        <div class="flow-title">Filter Kontak & Kirim Undangan</div>
+        <div class="flow-sub">Mulai: Admin filter kontak — Selesai: Email undangan terkirim ke peserta</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(88,166,255,.12);">🔍</div>
+        <div class="step-label"><strong>Admin Filter</strong>Pilih by industri, jabatan, kota, histori event</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(88,166,255,.12);">🗄️</div>
+        <div class="step-label"><strong>Query SQL</strong>Database cari kontak yang cocok</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step opt">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">🤖</div>
+        <div class="step-label"><strong>AI Recommend</strong>Claude Haiku saran kontak terbaik</div>
+        <span class="opt-badge">★ Opsional</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(88,166,255,.12);">☑️</div>
+        <div class="step-label"><strong>Admin Pilih</strong>Centang kontak → klik "Kirim Undangan"</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(88,166,255,.12);">⚡</div>
+        <div class="step-label"><strong>Masuk Antrean</strong>Job blast masuk Redis queue</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(88,166,255,.12);">📧</div>
+        <div class="step-label"><strong>Kirim Email</strong>Max 300/hari via Brevo, sisa antre besok</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">📬</div>
+        <div class="step-label"><strong>Peserta Terima</strong>Email undangan + link unik registrasi</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>⚠️ Soal limit 300 email/hari Brevo:</strong> Jika admin blast ke 900 kontak, sistem <em>tidak gagal</em>. Worker otomatis kirim 300 hari pertama, 300 hari kedua, 300 hari ketiga. Admin tidak perlu lakukan apapun — semua berjalan sendiri.
+  </div>
+  <div class="callout info">
+    <strong>🔵 AI Recommender (opsional):</strong> Jika admin klik "AI Recommend", Claude Haiku akan membandingkan profil kontak dengan kualifikasi target vendor event, lalu highlight kontak mana yang paling relevan. Admin tetap yang memutuskan.
+  </div>
+  <div class="callout good">
+    <strong>✅ Perubahan dari versi lama:</strong> WhatsApp via Everpro dihapus total. 100% email via Brevo. Tidak ada biaya langganan Everpro, tidak ada tagihan per sesi WhatsApp.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 4 — REGISTRASI
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-reg">
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(63,185,80,.2);color:var(--green);">3</div>
+      <div>
+        <div class="flow-title">Registrasi Peserta Online</div>
+        <div class="flow-sub">Mulai: Peserta klik link undangan — Selesai: Email terima kasih terkirim, status pending</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">📧</div>
+        <div class="step-label"><strong>Peserta Terima</strong>Email undangan di inbox</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">🔗</div>
+        <div class="step-label"><strong>Klik Link</strong>Buka halaman /register/[nama-event]</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">🗄️</div>
+        <div class="step-label"><strong>Ambil Data Event</strong>Sistem load info event + pertanyaan survei</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">📝</div>
+        <div class="step-label"><strong>Isi Form</strong>Nama, HP, email + jawab survei dinamis</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">🗄️</div>
+        <div class="step-label"><strong>Simpan ke DB</strong>Status = pending, jawaban survei tersimpan</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">📩</div>
+        <div class="step-label"><strong>Email Terkirim</strong>"Terima kasih! Tunggu konfirmasi admin."</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(227,179,65,.12);">⏳</div>
+        <div class="step-label"><strong>Menunggu</strong>Admin akan review dan approve</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>💡 Survei dinamis itu apa?</strong> Setiap event bisa punya pertanyaan survei yang berbeda — admin yang set. Misalnya event IT bisa tanya "Software apa yang dipakai?", event manufaktur tanya "Berapa kapasitas produksi?". Jawaban disimpan terstruktur di database.
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">📧 Email yang Diterima Peserta di Alur Ini</div>
+  <div class="email-row">
+    <div class="email-badge"><span style="font-size:18px;">📩</span><div><div class="en">Email 1 — Undangan</div><div class="et">Saat admin blast: berisi link unik registrasi</div></div></div>
+    <div class="email-badge"><span style="font-size:18px;">✉️</span><div><div class="en">Email 2 — Terima Kasih</div><div class="et">Saat form disubmit: "sedang diproses, tunggu konfirmasi"</div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 5 — APPROVE & QR
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-approve">
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(188,140,255,.2);color:var(--purple);">4</div>
+      <div>
+        <div class="flow-title">Approve Peserta & Kirim Tiket QR</div>
+        <div class="flow-sub">Mulai: Admin buka daftar pending — Selesai: Peserta terima email berisi tiket QR</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">📋</div>
+        <div class="step-label"><strong>Admin Review</strong>Lihat daftar peserta pending + jawaban survei</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">👍</div>
+        <div class="step-label"><strong>Klik Approve</strong>atau Reject per peserta</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">🔐</div>
+        <div class="step-label"><strong>Generate Token</strong>Sistem buat kode QR unik & aman (JWT)</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">🗄️</div>
+        <div class="step-label"><strong>Simpan Token</strong>Kode QR disimpan di database peserta</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">📧</div>
+        <div class="step-label"><strong>Kirim Email QR</strong>Email berisi gambar QR dikirim ke peserta</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">🎫</div>
+        <div class="step-label"><strong>Peserta Siap</strong>Punya tiket QR untuk ditunjukkan hari-H</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout purple">
+    <strong>🔐 QR Token itu apa?</strong> Tiket QR berisi kode terenkripsi (JWT) yang menyimpan: ID registrasi, ID event, dan tanggal kedaluwarsa. Tidak bisa dipalsukan karena ditandatangani dengan kunci rahasia server. Jika dipindai 2x, sistem langsung tahu sudah dipakai.
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">📧 Email yang Diterima Peserta di Alur Ini</div>
+  <div class="email-row">
+    <div class="email-badge"><span style="font-size:18px;">🎫</span><div><div class="en">Email 3 — Tiket QR</div><div class="et">Saat approved: gambar QR code embed di email, siap scan hari-H</div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 6 — HARI EVENT
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-event">
+  <div class="sec-title">🎫 5A — Peserta Terdaftar (Punya Tiket QR)</div>
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(57,197,207,.2);color:#39C5CF;">5A</div>
+      <div>
+        <div class="flow-title">Scan QR Hari Event</div>
+        <div class="flow-sub">Mulai: Staff buka halaman scan — Selesai: Status hadir + email konfirmasi terkirim</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(57,197,207,.12);">📱</div>
+        <div class="step-label"><strong>Staff Buka /scan</strong>Kamera HP aktif via browser</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(57,197,207,.12);">🎫</div>
+        <div class="step-label"><strong>Peserta Tunjukkan QR</strong>Buka email, tampilkan gambar QR ke staff</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(57,197,207,.12);">📷</div>
+        <div class="step-label"><strong>Scan QR</strong>Kamera baca kode, kirim ke server</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(57,197,207,.12);">🔍</div>
+        <div class="step-label"><strong>Verifikasi</strong>Cek: valid? belum expired? belum dipakai?</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">✅</div>
+        <div class="step-label"><strong>Status → Hadir</strong>Database update, dashboard +1 real-time</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(57,197,207,.12);">🙋</div>
+        <div class="step-label"><strong>Profil Tampil</strong>Layar staff tampilkan nama & perusahaan</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(57,197,207,.12);">📧</div>
+        <div class="step-label"><strong>Email Konfirmasi</strong>Bukti kehadiran dikirim ke peserta</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">🚶 5B — Peserta Walk-in (Datang Tanpa Daftar Online)</div>
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(227,179,65,.2);color:var(--yellow);">5B</div>
+      <div>
+        <div class="flow-title">Input Walk-in Manual</div>
+        <div class="flow-sub">Mulai: Peserta datang langsung — Selesai: Langsung tercatat hadir di database</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(227,179,65,.12);">🚶</div>
+        <div class="step-label"><strong>Peserta Datang</strong>Langsung ke lokasi, tidak daftar online</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(227,179,65,.12);">✍️</div>
+        <div class="step-label"><strong>Staff Input</strong>Ketik nama + nomor HP di form walk-in</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(227,179,65,.12);">🗄️</div>
+        <div class="step-label"><strong>Simpan Kontak</strong>Data masuk database (jika belum ada)</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">✅</div>
+        <div class="step-label"><strong>Status → Hadir</strong>Langsung hadir, tanpa perlu tiket QR</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(63,185,80,.12);">📊</div>
+        <div class="step-label"><strong>Dashboard +1</strong>Angka kehadiran update real-time</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>💡 Perbedaan Walk-in vs Terdaftar:</strong> Peserta walk-in tidak perlu isi survei dan tidak dapat tiket QR. Mereka hanya butuh nama + HP. Sistem langsung catat sebagai hadir — angka di dashboard tetap akurat.
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">📧 Email yang Diterima Peserta di Alur Ini</div>
+  <div class="email-row">
+    <div class="email-badge"><span style="font-size:18px;">🎉</span><div><div class="en">Email 4 — Konfirmasi Hadir</div><div class="et">Saat scan QR berhasil: nama, event, waktu check-in sebagai bukti</div></div></div>
+    <div class="email-badge" style="opacity:.5;"><span style="font-size:18px;">🚶</span><div><div class="en">Walk-in: Tidak ada email</div><div class="et">Hanya dicatat di database, tidak kirim email konfirmasi</div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 7 — ANALITIK
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-analytics">
+  <div class="flow-wrap">
+    <div class="flow-header">
+      <div class="flow-num" style="background:rgba(247,120,186,.2);color:var(--pink);">6</div>
+      <div>
+        <div class="flow-title">Dashboard Analitik & YoriMind</div>
+        <div class="flow-sub">Mulai: Admin buka dashboard — Selesai: Grafik & insight tampil</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-box" style="background:rgba(247,120,186,.12);">📊</div>
+        <div class="step-label"><strong>Admin Buka Dashboard</strong>Pilih event yang ingin dilihat</div>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(247,120,186,.12);">🗄️</div>
+        <div class="step-label"><strong>Query SQL Langsung</strong>Hitung semua angka dari database</div>
+        <span class="auto-badge">Real-time</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step">
+        <div class="step-box" style="background:rgba(247,120,186,.12);">📈</div>
+        <div class="step-label"><strong>Grafik & KPI Tampil</strong>Distribusi, funnel, tren historis</div>
+        <span class="auto-badge">Otomatis</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step opt">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">🤖</div>
+        <div class="step-label"><strong>Admin Klik YoriMind</strong>Minta AI analisis survei</div>
+        <span class="opt-badge">★ Opsional</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step opt">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">⚡</div>
+        <div class="step-label"><strong>Cek Cache Redis</strong>Jika sudah dianalisis hari ini, pakai cache</div>
+        <span class="opt-badge">★ Opsional</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step opt">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">🧠</div>
+        <div class="step-label"><strong>Kirim ke Claude</strong>Data survei dikirim ke Haiku/Sonnet</div>
+        <span class="opt-badge">★ Opsional</span>
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step opt">
+        <div class="step-box" style="background:rgba(188,140,255,.12);">📝</div>
+        <div class="step-label"><strong>Narasi AI Tampil</strong>Insight, root cause, rekomendasi actionable</div>
+        <span class="opt-badge">★ Opsional</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">📊 Isi Dashboard (Selalu Tersedia — Tanpa AI)</div>
+  <div class="grid grid-2">
+    <div class="card" data-color="pink"><div class="card-top"><span class="card-icon">🥧</span><div><div class="card-name">Distribusi Peserta</div></div></div><div class="card-desc">Grafik: berapa peserta dari industri apa, jabatan apa, kota mana. Update otomatis setiap ada check-in baru.</div></div>
+    <div class="card" data-color="pink"><div class="card-top"><span class="card-icon">🔽</span><div><div class="card-name">Funnel Konversi</div></div></div><div class="card-desc">Undangan dikirim → dibuka → daftar → diapprove → hadir. Tiap tahap ada angka dan persentase drop-off.</div></div>
+    <div class="card" data-color="pink"><div class="card-top"><span class="card-icon">📈</span><div><div class="card-name">Tren Historis</div></div></div><div class="card-desc">Bandingkan performa event ini vs 6 event sebelumnya. Mana yang naik, mana yang turun.</div></div>
+    <div class="card" data-color="pink"><div class="card-top"><span class="card-icon">🔍</span><div><div class="card-name">Search Peserta</div></div></div><div class="card-desc">Cari peserta by jabatan, industri, atau lokasi langsung via SQL — hasil muncul dalam hitungan detik.</div></div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;">🤖 YoriMind — Mode AI (Opsional)</div>
+  <div class="grid grid-2">
+    <div class="card" data-color="purple">
+      <div class="card-top"><span class="card-icon">💡</span><div><div class="card-name">YoriMind Lite</div><div class="card-tech">Claude Haiku · ~$1/tahun</div></div></div>
+      <div class="card-desc">Summary singkat dari data survei. Root cause sederhana berdasarkan pola data. Rekomendasi numerik konkret.</div>
+      <div class="card-tags"><span class="tag tag-ai">Claude Haiku</span><span class="tag tag-free">~$1/tahun</span></div>
+    </div>
+    <div class="card" data-color="purple">
+      <div class="card-top"><span class="card-icon">🧠</span><div><div class="card-name">YoriMind Pro</div><div class="card-tech">Claude Sonnet · ~$12/tahun</div></div></div>
+      <div class="card-desc">Narasi mendalam + analisis kausal. Strategi actionable dengan prioritas & timing. Insight untuk internal Yorindo.</div>
+      <div class="card-tags"><span class="tag tag-ai">Claude Sonnet</span><span class="tag tag-paid">~$12/tahun</span></div>
+    </div>
+  </div>
+  <div class="callout good">
+    <strong>✅ Perubahan dari versi lama:</strong> Python Stats Service yang selalu menyala 24 jam dihapus. Semua angka & grafik sekarang dihitung langsung lewat SQL ke PostgreSQL — lebih cepat, tidak ada server tambahan, gratis.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 8 — BIAYA
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-cost">
+
+  <div class="compare">
+    <div class="compare-card old">
+      <div class="compare-head">❌ Sebelum (v1.3)</div>
+      <div class="compare-item"><span class="ci">💸</span>Everpro WhatsApp: langganan bulanan + tagihan per sesi WA</div>
+      <div class="compare-item"><span class="ci">💸</span>OpenAI GPT-4.1-mini: biaya token untuk ETL ribuan kontak</div>
+      <div class="compare-item"><span class="ci">💸</span>Claude Haiku Smart Filter: biaya per query pencarian</div>
+      <div class="compare-item"><span class="ci">💸</span>Python Stats always-on: server jalan terus walau tidak dipakai</div>
+      <div class="compare-item"><span class="ci">💸</span>Total: biaya tetap bulanan + variabel per event yang tidak terduga</div>
+    </div>
+    <div class="compare-card new">
+      <div class="compare-head">✅ Sekarang (Terbaru)</div>
+      <div class="compare-item"><span class="ci">✂️</span>Everpro WA <strong>dihapus total</strong> → 100% Brevo Email (gratis)</div>
+      <div class="compare-item"><span class="ci">✂️</span>OpenAI GPT <strong>dihapus total</strong> → Python Pandas murni (gratis)</div>
+      <div class="compare-item"><span class="ci">✂️</span>Smart Filter AI <strong>dihapus</strong> → SQL query biasa (gratis)</div>
+      <div class="compare-item"><span class="ci">✂️</span>Python Stats always-on <strong>dihapus</strong> → analitik via SQL (gratis)</div>
+      <div class="compare-item"><span class="ci">✅</span>Hanya tersisa: domain tahunan + AI Haiku/Sonnet yang sangat murah</div>
+    </div>
+  </div>
+
+  <div class="sec-title">📊 Rincian Biaya Tahunan — Versi Terbaru</div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table class="cost-table">
+      <thead>
+        <tr>
+          <th>Layanan</th>
+          <th>Fungsi</th>
+          <th>Biaya / Tahun</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>🌐 Domain (yorindo.id)</td>
+          <td style="color:var(--muted);">Alamat website — satu-satunya biaya wajib tetap</td>
+          <td class="price-cheap">~Rp 150–200rb</td>
+        </tr>
+        <tr>
+          <td>🖥️ Oracle Cloud VPS</td>
+          <td style="color:var(--muted);">Server utama 4vCPU 24GB — Oracle Always Free Tier</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>🗄️ PostgreSQL (Supabase)</td>
+          <td style="color:var(--muted);">Database semua data — Supabase Free 500MB</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>⚡ Redis (Upstash)</td>
+          <td style="color:var(--muted);">Antrean job — Free 10.000 commands/hari</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>📁 File Storage (Supabase)</td>
+          <td style="color:var(--muted);">Arsip file Excel upload — Supabase Free</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>📬 Brevo Email</td>
+          <td style="color:var(--muted);">Kirim semua email — 300/hari gratis, antre otomatis</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>🐍 Python/Pandas (Render)</td>
+          <td style="color:var(--muted);">ETL data cleaning — dipanggil hanya saat ada upload</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>☁️ Cloudflare</td>
+          <td style="color:var(--muted);">DNS, keamanan, cache — Free tier</td>
+          <td class="price-free">$0</td>
+        </tr>
+        <tr>
+          <td>🤖 Claude Haiku (Recommender)</td>
+          <td style="color:var(--muted);">AI rekomendasikan peserta — dipanggil saat dipakai saja</td>
+          <td class="price-cheap">~$1</td>
+        </tr>
+        <tr>
+          <td>📊 YoriMind Lite (Haiku)</td>
+          <td style="color:var(--muted);">AI rangkum insight survei — cache 24 jam, hemat token</td>
+          <td class="price-cheap">~$1</td>
+        </tr>
+        <tr>
+          <td>📈 YoriMind Pro (Sonnet) — opsional</td>
+          <td style="color:var(--muted);">Narasi mendalam + vendor feedback — hanya jika diaktifkan</td>
+          <td class="price-cheap">~$12</td>
+        </tr>
+        <tr class="del-row">
+          <td>❌ OpenAI GPT (dihapus)</td>
+          <td>Dulu untuk ETL 30.000+ kontak</td>
+          <td class="price-del">~$240–600+</td>
+        </tr>
+        <tr class="del-row">
+          <td>❌ Everpro WhatsApp (dihapus)</td>
+          <td>Langganan + biaya per sesi WA</td>
+          <td class="price-del">~$360–960+</td>
+        </tr>
+        <tr class="total-row">
+          <td>✅ <strong>TOTAL BARU (Lite)</strong></td>
+          <td style="color:var(--muted);">Domain + 2× AI Haiku</td>
+          <td class="price-free">~Rp 150rb + $2</td>
+        </tr>
+        <tr class="total-row">
+          <td>✅ <strong>TOTAL BARU (Pro)</strong></td>
+          <td style="color:var(--muted);">Domain + Haiku + Sonnet</td>
+          <td class="price-free">~Rp 150rb + $14</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout good" style="margin-top:16px;">
+    <strong>💡 Penghematan:</strong> Dengan menghapus Everpro WA, OpenAI GPT, dan Smart Filter AI — biaya operasional turun dari estimasi ratusan dolar per tahun menjadi hanya ~$2–14/tahun untuk AI, ditambah biaya domain. Lebih dari 95% penghematan biaya rutin.
+  </div>
+</div>
+
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
